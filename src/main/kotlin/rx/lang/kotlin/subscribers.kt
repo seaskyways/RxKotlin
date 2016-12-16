@@ -1,31 +1,22 @@
 package rx.lang.kotlin
 
-import rx.SingleSubscriber
-import rx.Subscriber
-import rx.exceptions.OnErrorNotImplementedException
-import rx.observers.SerializedSubscriber
-import rx.subscriptions.Subscriptions
+import io.reactivex.functions.Consumer
+import io.reactivex.subscribers.SerializedSubscriber
+import org.reactivestreams.Subscriber
+import org.reactivestreams.Subscription
 import java.util.*
 
-class FunctionSubscriber<T>() : Subscriber<T>() {
+class FunctionSubscriber<T>() : Consumer<T> {
+    override fun accept(t: T) {
+        onCompletedFunctions.forEach { it() }
+    }
+
     private val onCompletedFunctions = ArrayList<() -> Unit>()
     private val onErrorFunctions = ArrayList<(e: Throwable) -> Unit>()
     private val onNextFunctions = ArrayList<(value: T) -> Unit>()
     private val onStartFunctions = ArrayList<() -> Unit>()
 
-    override fun onCompleted() = onCompletedFunctions.forEach { it() }
-
-    override fun onError(e: Throwable?) = (e ?: RuntimeException("exception is unknown")).let { ex ->
-        if (onErrorFunctions.isEmpty()) {
-            throw OnErrorNotImplementedException(ex)
-        } else {
-            onErrorFunctions.forEach { it(ex) }
-        }
-    }
-
-    override fun onNext(t: T) = onNextFunctions.forEach { it(t) }
-
-    override fun onStart() = onStartFunctions.forEach { it() }
+    fun onStart() = onStartFunctions.forEach { it() }
 
     fun onCompleted(onCompletedFunction: () -> Unit): FunctionSubscriber<T> = copy { onCompletedFunctions.add(onCompletedFunction) }
     fun onError(onErrorFunction: (t: Throwable) -> Unit): FunctionSubscriber<T> = copy { onErrorFunctions.add(onErrorFunction) }
@@ -45,19 +36,13 @@ class FunctionSubscriber<T>() : Subscriber<T>() {
     }
 }
 
-class FunctionSingleSubscriber<T>() : SingleSubscriber<T>() {
+class FunctionSingleSubscriber<T>() : Consumer<T>{
+    override fun accept(t: T) {
+        onSuccessFunctions.forEach { it(t) }
+    }
+
     private val onSuccessFunctions = ArrayList<(value: T) -> Unit>()
     private val onErrorFunctions = ArrayList<(e: Throwable) -> Unit>()
-
-    override fun onSuccess(t: T) = onSuccessFunctions.forEach { it(t) }
-
-    override fun onError(e: Throwable?) = (e ?: RuntimeException("exception is unknown")).let { ex ->
-        if (onErrorFunctions.isEmpty()) {
-            throw OnErrorNotImplementedException(ex)
-        } else {
-            onErrorFunctions.forEach { it(ex) }
-        }
-    }
 
     fun onSuccess(onSuccessFunction: (t: T) -> Unit): FunctionSingleSubscriber<T> = copy { onSuccessFunctions.add(onSuccessFunction) }
     fun onError(onErrorFunction: (e: Throwable) -> Unit): FunctionSingleSubscriber<T> = copy { onErrorFunctions.add(onErrorFunction) }
@@ -94,4 +79,4 @@ class FunctionSingleSubscriberModifier<T>(init: FunctionSingleSubscriber<T> = si
 fun <T> subscriber(): FunctionSubscriber<T> = FunctionSubscriber()
 fun <T> singleSubscriber(): FunctionSingleSubscriber<T> = FunctionSingleSubscriber()
 fun <T> Subscriber<T>.synchronized(): Subscriber<T> = SerializedSubscriber(this)
-fun Subscriber<*>.add(action: () -> Unit) = add(Subscriptions.create(action))
+//fun Subscriber<*>.add(action: () -> Unit) = thi(Subscriptions.create(action))
