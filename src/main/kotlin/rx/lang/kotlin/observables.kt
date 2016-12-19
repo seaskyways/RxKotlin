@@ -6,10 +6,12 @@ import io.reactivex.Single
 import io.reactivex.disposables.Disposable
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
+import java.util.concurrent.Callable
 
 
 fun <T> emptyObservable(): Observable<T> = Observable.empty()
 fun <T> observable(body: (s: ObservableEmitter<in T>) -> Unit): Observable<T> = Observable.create(body)
+fun <T> callable(body: () -> T): Observable<T> = Observable.fromCallable(body)
 /**
  * Create deferred observable
  * @see [rx.Observable.defer] and [http://reactivex.io/documentation/operators/defer.html]
@@ -27,12 +29,7 @@ fun IntArray.toObservable(): Observable<Int> = this.toList().toObservable()
 fun LongArray.toObservable(): Observable<Long> = this.toList().toObservable()
 fun FloatArray.toObservable(): Observable<Float> = this.toList().toObservable()
 fun DoubleArray.toObservable(): Observable<Double> = this.toList().toObservable()
-fun <T> Array<T>.toObservable(): Observable<T> = Observable.create { emitter: ObservableEmitter<T> ->
-    forEach {
-        emitter.onNext(it)
-    }
-    emitter.onComplete()
-}
+fun <T> Array<T>.toObservable(): Observable<T> = Observable.fromArray(*this)
 
 fun IntProgression.toObservable(): Observable<Int> =
         if (step == 1 && last.toLong() - first < Integer.MAX_VALUE) Observable.range(first, Math.max(0, last - first + 1))
