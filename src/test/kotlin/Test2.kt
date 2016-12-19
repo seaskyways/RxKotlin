@@ -1,13 +1,13 @@
+import io.reactivex.*
 import io.reactivex.Observable
 import io.reactivex.Observer
 import io.reactivex.schedulers.Schedulers
 import org.junit.Test
-import rx.lang.kotlin.computation
-import rx.lang.kotlin.io
-import rx.lang.kotlin.observable
-import rx.lang.kotlin.trampoline
+import rx.lang.kotlin.*
+import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.comparisons.compareBy
 
 class Test2 {
     val counter = AtomicLong(0)
@@ -69,7 +69,7 @@ class Test2 {
                     .map { mCounter.andIncrement }
         }
 
-        private lateinit var observableCounter : Observable<Long>
+        private lateinit var observableCounter: Observable<Long>
         private val mCounter = AtomicLong(0)
         override fun subscribeActual(observer: Observer<in Long>) {
             observableCounter.subscribeWith(observer)
@@ -102,5 +102,48 @@ class Test2 {
             println("Ticker 3 : ticks remaining are $it")
         }
         Thread.sleep(7000)
+    }
+
+    @Test
+    fun test4() {
+        val x = ""
+        println("you just typed : $x")
+    }
+
+    @Test
+    fun test5() {
+        for (i in 1..3){
+            println("Test $i\n\n")
+            val schedulers = listOf(
+                    io to "IO",
+                    computation to "Computation",
+                    newThread to "NewThread",
+                    single to "Single"
+//                trampoline to "Trampoline"
+            )
+            val resultList = mutableMapOf<Long, String>()
+            val range = 0L..Math.pow(10.0, 10.0).toLong()
+            println("range is $range")
+
+            for ((scheduler, schedulerName) in schedulers) {
+                var lastValue: Long = 0
+
+                val subscriber = Flowable.create<Long>({
+                    for (i in range) {
+                        it.onNext(i)
+                    }
+                    it.onComplete()
+                }, BackpressureStrategy.DROP)
+                        .subscribeOn(scheduler)
+                        .onBackpressureDrop { println("dropped $it") }
+                        .subscribe({ lastValue = it })
+                Thread.sleep(5000)
+                println("Finished $schedulerName with ${lastValue}")
+                resultList.put(lastValue, schedulerName)
+                subscriber.dispose()
+            }
+
+            println(resultList.toSortedMap().toString())
+        }
     }
 }
