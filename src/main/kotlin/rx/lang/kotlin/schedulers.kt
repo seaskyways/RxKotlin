@@ -7,17 +7,17 @@ import io.reactivex.schedulers.Schedulers
  * Created by Ahmad on 19/12 Dec/2016.
  */
 
-val io : Scheduler
+val ioScheduler: Scheduler
 get() = Schedulers.io()
 
-val computation : Scheduler
+val computationScheduler: Scheduler
     get() = Schedulers.computation()
 
-val newThread : Scheduler
+val newThreadScheduler: Scheduler
     get() = Schedulers.newThread()
 
-val single : Scheduler
+val singleScheduler: Scheduler
     get() = Schedulers.single()
 
-val trampoline : Scheduler
+val trampolineScheduler: Scheduler
     get() = Schedulers.trampoline()

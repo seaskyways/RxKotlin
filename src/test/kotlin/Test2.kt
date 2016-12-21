@@ -1,13 +1,14 @@
-import io.reactivex.*
+import io.reactivex.BackpressureStrategy
+import io.reactivex.Flowable
 import io.reactivex.Observable
 import io.reactivex.Observer
+import io.reactivex.functions.BiFunction
 import io.reactivex.schedulers.Schedulers
+import org.funktionale.either.Either
 import org.junit.Test
 import rx.lang.kotlin.*
-import java.util.*
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.comparisons.compareBy
 
 class Test2 {
     val counter = AtomicLong(0)
@@ -64,7 +65,7 @@ class Test2 {
 
     class Clock(val unit: TimeUnit = TimeUnit.SECONDS) : Observable<Long>() {
         fun start() {
-            observableCounter = timer(1, unit, trampoline)
+            observableCounter = timer(1, unit, trampolineScheduler)
                     .repeat()
                     .map { mCounter.andIncrement }
         }
@@ -110,16 +111,18 @@ class Test2 {
         println("you just typed : $x")
     }
 
+    data class End<out T>(val lastValue: T)
+
     @Test
     fun test5() {
-        for (i in 1..3){
+        for (i in 1..3) {
             println("Test $i\n\n")
             val schedulers = listOf(
-                    io to "IO",
-                    computation to "Computation",
-                    newThread to "NewThread",
-                    single to "Single"
-//                trampoline to "Trampoline"
+                    ioScheduler to "IO",
+                    computationScheduler to "Computation",
+                    newThreadScheduler to "NewThread",
+                    singleScheduler to "Single"
+//                trampolineScheduler to "Trampoline"
             )
             val resultList = mutableMapOf<Long, String>()
             val range = 0L..Math.pow(10.0, 10.0).toLong()
@@ -127,23 +130,50 @@ class Test2 {
 
             for ((scheduler, schedulerName) in schedulers) {
                 var lastValue: Long = 0
-
-                val subscriber = Flowable.create<Long>({
-                    for (i in range) {
-                        it.onNext(i)
+                var shouldStop = false
+                timer<Unit>(5000, TimeUnit.MILLISECONDS) {
+                    println("should stop now")
+                    shouldStop = true
+                }
+                val subscriber = Flowable.create<Either<Long, End<Long>>>({ emitter ->
+                    range.forEach {
+                        if (shouldStop) {
+                            emitter.onNext(Either.Right(End(it)))
+                            emitter.onComplete()
+                        } else {
+                            emitter.onNext(Either.Left(it))
+                        }
                     }
-                    it.onComplete()
                 }, BackpressureStrategy.DROP)
                         .subscribeOn(scheduler)
                         .onBackpressureDrop { println("dropped $it") }
-                        .subscribe({ lastValue = it })
-                Thread.sleep(5000)
-                println("Finished $schedulerName with ${lastValue}")
-                resultList.put(lastValue, schedulerName)
-                subscriber.dispose()
+                        .filter { it.isRight() }
+                        .map { it.component1()!! }
+                        .blockingSubscribe({
+                            lastValue = it
+                        }, {}, {
+                            println("Finished $schedulerName with ${lastValue}")
+                            resultList.put(lastValue, schedulerName)
+                        })
             }
-
             println(resultList.toSortedMap().toString())
         }
+        Thread.sleep(7000)
     }
+
+    @Test fun parallelExecution() {
+//        val clock = Clock()
+        val o1 = Observable.range(0, 10)
+                .delay(1, TimeUnit.SECONDS, computationScheduler)
+        val o2 = Observable.range(5, 5)
+                .map { "Hello from o2 : $it" }
+                .delay(2, TimeUnit.SECONDS, computationScheduler)
+//        clock.start()
+//        clock.map { "Clock is ticking : $it" }
+//                .subscribe(::println)
+        observableZip(o1, o2) { i, s -> "$s , and from the zipper we have int $i" }
+                .subscribe(::println)
+//        Thread.sleep(12000)
+    }
+
 }

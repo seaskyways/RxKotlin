@@ -4,6 +4,7 @@ import io.reactivex.Observable
 import io.reactivex.ObservableEmitter
 import io.reactivex.Single
 import io.reactivex.disposables.Disposable
+import io.reactivex.functions.BiFunction
 import org.reactivestreams.Subscriber
 import org.reactivestreams.Subscription
 import java.util.concurrent.Callable
@@ -46,7 +47,8 @@ fun <T> Throwable.toObservable(): Observable<T> = Observable.error(this)
 
 fun <T> Iterable<Observable<out T>>.merge(): Observable<T> = Observable.merge(this.toObservable())
 fun <T> Iterable<Observable<out T>>.mergeDelayError(): Observable<T> = Observable.mergeDelayError(this.toObservable())
-
+fun <T1, T2, R> observableZip(s1: Observable<T1>, s2: Observable<T2>, zipper: (T1, T2) -> R): Observable<R> =
+        Observable.zip<T1, T2, R>(s1, s2, BiFunction { t1, t2 -> zipper(t1, t2) })
 
 fun <T, R> Observable<T>.fold(initial: R, body: (R, T) -> R): Single<R> = reduce(initial, { a, e -> body(a, e) })
 fun <T> Observable<T>.onError(block: (Throwable) -> Unit): Observable<T> = doOnError(block)
